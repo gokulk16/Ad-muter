@@ -17,7 +17,7 @@ function toggleMuteState(tabId, muted) {
 }
 
 async function getJioCinemaTab() {
-    let queryOptions = { active: true, url: "*://www.jiocinema.com/*" };
+    let queryOptions = { url: "*://www.jiocinema.com/*" };
     // `tab` will either be a `tabs.Tab` instance or `undefined`.
     let [tab] = await chrome.tabs.query(queryOptions);
     return tab;
