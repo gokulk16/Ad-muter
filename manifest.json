@@ -13,7 +13,7 @@
     }
   },
   "permissions": ["storage", "tabs", "activeTab"],
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": ["https://www.jiocinema.com/*"],
   "icons": {
     "16": "images/icon16.png",
     "32": "images/icon32.png",
