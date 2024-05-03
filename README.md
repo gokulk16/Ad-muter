@@ -4,7 +4,7 @@ This Chrome extension automatically mutes the ads on JioCinema, only for IPL 202
 
 ## Installation
 
-1. Download the extension from [here](https://github.com/gokulk16/Ad-muter/releases/download/1.0/Jiocinema-ad-muter.zip).
+1. Download the extension from [here](https://github.com/gokulk16/Ad-muter/releases/download/1.2/Ad-muter.zip).
 2. Extract the zip file.
 3. Open Chrome and go to `chrome://extensions/`.
 4. Enable Developer mode.
