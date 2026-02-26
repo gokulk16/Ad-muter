@@ -4,10 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ad Mute</title>
+    <style>
+      body {
+        min-width: 220px;
+        font-family: Arial, sans-serif;
+        margin: 12px;
+      }
+
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      #statusText {
+        font-size: 12px;
+        color: #666;
+        margin-top: 8px;
+      }
+    </style>
   </head>
   <body>
     <h1>Ad Mute</h1>
-    <input type="checkbox" id="checkbox" /> Enable Feature
+    <div class="toggle-row">
+      <input type="checkbox" id="checkbox" />
+      <label for="checkbox">Enable ad muting</label>
+    </div>
+    <p id="statusText" aria-live="polite"></p>
     <script src="js/popup.js"></script>
   </body>
 </html>
