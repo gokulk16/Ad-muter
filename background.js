@@ -1,24 +1,74 @@
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-    if (message === 'MUTE') {
-        const tab = await getJioCinemaTab();
-        toggleMuteState(tab.id, true);
-    } else if (message === 'UNMUTE') {
-        const tab = await getJioCinemaTab();
-        toggleMuteState(tab.id, false);
-    }
+const extensionMutedTabIds = new Set();
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message === "MUTE" || message === "UNMUTE") {
+    const legacyMutedState = message === "MUTE";
+    handleMuteRequest({
+      tabId: sender?.tab?.id,
+      muted: legacyMutedState,
+      reason: "legacy-message"
+    })
+      .then(() => sendResponse?.({ ok: true }))
+      .catch((error) => {
+        console.error("Legacy mute request failed:", error);
+        sendResponse?.({ ok: false, error: String(error) });
+      });
+
+    return true;
+  }
+
+  if (!message || message.type !== "SET_TAB_MUTED") {
+    return false;
+  }
+
+  handleMuteRequest({
+    tabId: sender?.tab?.id,
+    muted: Boolean(message.muted),
+    reason: message.reason || "content-script-request"
+  })
+    .then(() => sendResponse?.({ ok: true }))
+    .catch((error) => {
+      console.error("Mute request failed:", error);
+      sendResponse?.({ ok: false, error: String(error) });
+    });
+
+  return true;
 });
 
-function toggleMuteState(tabId, muted) {
-    chrome.tabs.get(tabId, async (tab) => {
-        // let muted = !tab.mutedInfo.muted;
-        await chrome.tabs.update(tabId, { muted });
-        console.log(`Tab ${tab.id} is ${muted ? "muted" : "unmuted"}`);
-    });
-}
+chrome.tabs.onRemoved.addListener((tabId) => {
+  extensionMutedTabIds.delete(tabId);
+});
 
-async function getJioCinemaTab() {
-    let queryOptions = { url: "*://www.jiocinema.com/*" };
-    // `tab` will either be a `tabs.Tab` instance or `undefined`.
-    let [tab] = await chrome.tabs.query(queryOptions);
-    return tab;
+async function handleMuteRequest({ tabId, muted, reason }) {
+  if (!Number.isInteger(tabId)) {
+    return;
+  }
+
+  const tab = await chrome.tabs.get(tabId);
+  if (!tab) {
+    return;
+  }
+
+  const isCurrentlyMuted = Boolean(tab.mutedInfo?.muted);
+
+  if (muted) {
+    if (!isCurrentlyMuted) {
+      await chrome.tabs.update(tabId, { muted: true });
+      console.log(`Muted tab ${tabId} (${reason})`);
+    }
+    extensionMutedTabIds.add(tabId);
+    return;
+  }
+
+  // Only unmute tabs that were muted by this extension.
+  if (!extensionMutedTabIds.has(tabId)) {
+    return;
+  }
+
+  if (isCurrentlyMuted) {
+    await chrome.tabs.update(tabId, { muted: false });
+    console.log(`Unmuted tab ${tabId} (${reason})`);
+  }
+
+  extensionMutedTabIds.delete(tabId);
 }

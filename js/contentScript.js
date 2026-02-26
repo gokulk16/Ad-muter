@@ -1,50 +1,226 @@
-const AD_DIV_SELECTOR = "div > div.mui-style-5kj990-adTag";
+const UNMUTE_GRACE_PERIOD_MS = 2500;
+const EVALUATION_THROTTLE_MS = 100;
+
+/**
+ * Add future ad indicators by appending entries to this array.
+ * Supported locator types:
+ * - { type: "xpath", query: "<xpath>" }
+ * - { type: "css", query: "<css selector>" }
+ */
+const AD_INDICATOR_RULES = [
+  {
+    id: "jiocinema-ad-badge",
+    textEquals: "Ad",
+    locators: [
+      {
+        type: "xpath",
+        query:
+          "//*[@id='page-container']/div/div/div[1]/div/div/div/div/div[2]/div/div[1]/div[1]/div[2]/div/div[1]/div/div[2]/div/span[2]"
+      },
+      {
+        type: "xpath",
+        query:
+          "//*[@data-testid='ad-head']//span[@data-testid='indicator-base-text']"
+      },
+      {
+        type: "css",
+        query: "div[data-testid='ad-head'] span[data-testid='indicator-base-text']"
+      }
+    ]
+  }
+];
 
 let isAdMuteEnabled = true;
+let pendingUnmuteTimeoutId = null;
+let evaluationTimerId = null;
+let lastRequestedMuteState = null;
 
-async function muteTab() {
-  chrome.runtime.sendMessage('MUTE');
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!message || message.type !== "SET_AD_MUTE_ENABLED") {
+    return false;
+  }
+
+  isAdMuteEnabled = Boolean(message.enabled);
+  scheduleEvaluation();
+  sendResponse?.({ ok: true, adMuteIsEnabled: isAdMuteEnabled });
+  return false;
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes.adMuteIsEnabled) {
+    return;
+  }
+
+  isAdMuteEnabled = Boolean(changes.adMuteIsEnabled.newValue);
+  scheduleEvaluation();
+});
+
+function normalizeText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-async function unmuteTab() {
-  chrome.runtime.sendMessage('UNMUTE');
+function doesElementMatchText(element, rule) {
+  const elementText = normalizeText(element.textContent);
+
+  if (rule.textEquals && elementText !== normalizeText(rule.textEquals)) {
+    return false;
+  }
+
+  if (rule.textIncludes && !elementText.includes(normalizeText(rule.textIncludes))) {
+    return false;
+  }
+
+  return true;
 }
 
-// Initializes the ad mute feature by setting up listeners and intervals
-function initAdMuteFeature() {
-  const checkForAds = () => {
-    // if (!isAdMuteEnabled) return;
+function resolveLocatorElements(locator) {
+  if (locator.type === "css") {
+    return Array.from(document.querySelectorAll(locator.query));
+  }
 
-    const observer = new MutationObserver((mutationsList, observer) => {
-      for (let mutation of mutationsList) {
-        if (mutation.type === 'childList') {
-          const adDiv = document.querySelector(AD_DIV_SELECTOR);
-          if (adDiv) {
-            muteTab()
-          } else {
-            setTimeout(() => {
-              if (!document.querySelector(AD_DIV_SELECTOR)) {
-                unmuteTab()
-              }
-            }, 8000);
-          }
+  if (locator.type === "xpath") {
+    try {
+      const result = document.evaluate(
+        locator.query,
+        document,
+        null,
+        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+        null
+      );
+      const nodes = [];
+      for (let index = 0; index < result.snapshotLength; index += 1) {
+        const node = result.snapshotItem(index);
+        if (node) {
+          nodes.push(node);
         }
       }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-  };
-
-  const adDetectionInterval = setInterval(() => {
-    if (document.readyState === 'complete') {
-      checkForAds();
-      clearInterval(adDetectionInterval);
+      return nodes;
+    } catch (error) {
+      console.warn("Invalid XPath locator:", locator.query, error);
+      return [];
     }
-  }, 1800);
+  }
+
+  return [];
 }
 
-// Initialize ad mute feature when the document is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAdMuteFeature);
+function findAdIndicatorMatch() {
+  for (const rule of AD_INDICATOR_RULES) {
+    for (const locator of rule.locators) {
+      const elements = resolveLocatorElements(locator);
+      for (const element of elements) {
+        if (doesElementMatchText(element, rule)) {
+          return { ruleId: rule.id, element };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function clearPendingUnmuteTimeout() {
+  if (pendingUnmuteTimeoutId !== null) {
+    window.clearTimeout(pendingUnmuteTimeoutId);
+    pendingUnmuteTimeoutId = null;
+  }
+}
+
+async function requestMuteState(muted, reason, force = false) {
+  if (!force && lastRequestedMuteState === muted) {
+    return;
+  }
+
+  try {
+    await chrome.runtime.sendMessage({
+      type: "SET_TAB_MUTED",
+      muted,
+      reason
+    });
+    lastRequestedMuteState = muted;
+  } catch (error) {
+    console.debug("Mute request failed:", error);
+  }
+}
+
+function scheduleUnmuteWhenStable() {
+  if (pendingUnmuteTimeoutId !== null) {
+    return;
+  }
+
+  pendingUnmuteTimeoutId = window.setTimeout(async () => {
+    pendingUnmuteTimeoutId = null;
+
+    const stillShowingAd = Boolean(findAdIndicatorMatch());
+    if (!stillShowingAd) {
+      await requestMuteState(false, "no-ad-indicators-after-grace-period");
+    }
+  }, UNMUTE_GRACE_PERIOD_MS);
+}
+
+async function evaluateMuteState() {
+  if (!isAdMuteEnabled) {
+    clearPendingUnmuteTimeout();
+    await requestMuteState(false, "feature-disabled", true);
+    return;
+  }
+
+  const adMatch = findAdIndicatorMatch();
+  if (adMatch) {
+    clearPendingUnmuteTimeout();
+    await requestMuteState(true, `ad-indicator:${adMatch.ruleId}`);
+    return;
+  }
+
+  if (lastRequestedMuteState !== false) {
+    scheduleUnmuteWhenStable();
+  }
+}
+
+function scheduleEvaluation() {
+  if (evaluationTimerId !== null) {
+    return;
+  }
+
+  evaluationTimerId = window.setTimeout(() => {
+    evaluationTimerId = null;
+    void evaluateMuteState();
+  }, EVALUATION_THROTTLE_MS);
+}
+
+function startMutationObserver() {
+  const observerTarget = document.documentElement || document.body;
+  if (!observerTarget) {
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    scheduleEvaluation();
+  });
+
+  observer.observe(observerTarget, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+}
+
+async function loadSettings() {
+  const data = await chrome.storage.local.get({ adMuteIsEnabled: true });
+  isAdMuteEnabled = Boolean(data.adMuteIsEnabled);
+}
+
+async function initAdMuteFeature() {
+  await loadSettings();
+  startMutationObserver();
+  await evaluateMuteState();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    void initAdMuteFeature();
+  });
 } else {
-  initAdMuteFeature();
+  void initAdMuteFeature();
 }
