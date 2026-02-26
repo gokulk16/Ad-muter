@@ -3,7 +3,7 @@
   "name": "Ad Mute",
   "version": "1.1.0",
   "description": "Automatically mutes supported streaming tabs when ad indicators are detected.",
-  "minimum_chrome_version": "114",
+  "minimum_chrome_version": "88",
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

@@ -44,7 +44,7 @@ async function handleMuteRequest({ tabId, muted, reason }) {
     return;
   }
 
-  const tab = await chrome.tabs.get(tabId);
+  const tab = await tabsGet(tabId);
   if (!tab) {
     return;
   }
@@ -53,7 +53,7 @@ async function handleMuteRequest({ tabId, muted, reason }) {
 
   if (muted) {
     if (!isCurrentlyMuted) {
-      await chrome.tabs.update(tabId, { muted: true });
+      await tabsUpdate(tabId, { muted: true });
       console.log(`Muted tab ${tabId} (${reason})`);
     }
     extensionMutedTabIds.add(tabId);
@@ -66,9 +66,47 @@ async function handleMuteRequest({ tabId, muted, reason }) {
   }
 
   if (isCurrentlyMuted) {
-    await chrome.tabs.update(tabId, { muted: false });
+    await tabsUpdate(tabId, { muted: false });
     console.log(`Unmuted tab ${tabId} (${reason})`);
   }
 
   extensionMutedTabIds.delete(tabId);
+}
+
+function tabsGet(tabId) {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.tabs.get(tabId, (tab) => {
+        const runtimeError = chrome.runtime.lastError;
+        if (runtimeError) {
+          if ((runtimeError.message || "").includes("No tab with id")) {
+            resolve(null);
+            return;
+          }
+          reject(new Error(runtimeError.message));
+          return;
+        }
+        resolve(tab || null);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function tabsUpdate(tabId, updateProperties) {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.tabs.update(tabId, updateProperties, (tab) => {
+        const runtimeError = chrome.runtime.lastError;
+        if (runtimeError) {
+          reject(new Error(runtimeError.message));
+          return;
+        }
+        resolve(tab || null);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
 }

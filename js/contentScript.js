@@ -55,6 +55,42 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   scheduleEvaluation();
 });
 
+function storageGet(defaultValues) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.get(defaultValues, (data) => {
+        const runtimeError = chrome.runtime.lastError;
+        if (runtimeError) {
+          console.debug("Failed to read storage:", runtimeError.message);
+          resolve(defaultValues);
+          return;
+        }
+        resolve(data || defaultValues);
+      });
+    } catch (error) {
+      console.debug("Failed to read storage:", error);
+      resolve(defaultValues);
+    }
+  });
+}
+
+function runtimeSendMessage(message) {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        const runtimeError = chrome.runtime.lastError;
+        if (runtimeError) {
+          reject(new Error(runtimeError.message));
+          return;
+        }
+        resolve(response || null);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 function normalizeText(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
@@ -133,7 +169,7 @@ async function requestMuteState(muted, reason, force = false) {
   }
 
   try {
-    await chrome.runtime.sendMessage({
+    await runtimeSendMessage({
       type: "SET_TAB_MUTED",
       muted,
       reason
@@ -207,7 +243,7 @@ function startMutationObserver() {
 }
 
 async function loadSettings() {
-  const data = await chrome.storage.local.get({ adMuteIsEnabled: true });
+  const data = await storageGet({ adMuteIsEnabled: true });
   isAdMuteEnabled = Boolean(data.adMuteIsEnabled);
 }
 

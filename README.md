@@ -47,6 +47,7 @@ Supported locator types:
 ## Chrome Web Store compliance notes
 
 - Manifest V3 extension (service worker background script).
+- Supports Chrome `88+` (covers 2021 Chrome releases).
 - No remote code execution.
 - No collection or transmission of personal/sensitive user data.
 - Uses minimal permissions needed for functionality.
