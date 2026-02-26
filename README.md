@@ -1,6 +1,6 @@
-# JioCinema Ad Muter
+# Hotstar Ad Muter
 
-This Chrome extension automatically mutes supported JioCinema tabs when ad indicators are detected in the page DOM.
+This Chrome extension automatically mutes supported `hotstar.com` tabs when ad indicators are detected in the page DOM.
 
 ## What's updated
 
@@ -42,7 +42,7 @@ Supported locator types:
 2. Open Chrome and go to `chrome://extensions/`.
 3. Enable **Developer mode**.
 4. Click **Load unpacked** and select this project folder.
-5. Open/reload a supported JioCinema tab.
+5. Open/reload a supported `hotstar.com` tab.
 
 ## Chrome Web Store compliance notes
 

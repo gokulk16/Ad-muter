@@ -9,7 +9,7 @@ const EVALUATION_THROTTLE_MS = 100;
  */
 const AD_INDICATOR_RULES = [
   {
-    id: "jiocinema-ad-badge",
+    id: "hotstar-ad-badge",
     textEquals: "Ad",
     locators: [
       {

@@ -25,7 +25,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.jiocinema.com/*"],
+      "matches": ["*://hotstar.com/*", "*://*.hotstar.com/*"],
       "js": ["js/contentScript.js"],
       "run_at": "document_idle"
     }
