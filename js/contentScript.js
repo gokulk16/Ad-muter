@@ -1,5 +1,6 @@
-const UNMUTE_GRACE_PERIOD_MS = 2500;
-const EVALUATION_THROTTLE_MS = 100;
+const UNMUTE_GRACE_PERIOD_MS = 150;
+const EVALUATION_THROTTLE_MS = 50;
+const FALLBACK_RECHECK_INTERVAL_MS = 200;
 
 /**
  * Add future ad indicators by appending entries to this array.
@@ -111,6 +112,24 @@ function doesElementMatchText(element, rule) {
   return true;
 }
 
+function isElementVisible(element) {
+  if (!(element instanceof Element)) {
+    return false;
+  }
+
+  const style = window.getComputedStyle(element);
+  if (!style || style.display === "none" || style.visibility === "hidden") {
+    return false;
+  }
+
+  if (Number.parseFloat(style.opacity || "1") === 0) {
+    return false;
+  }
+
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
 function resolveLocatorElements(locator) {
   if (locator.type === "css") {
     return Array.from(document.querySelectorAll(locator.query));
@@ -147,7 +166,7 @@ function findAdIndicatorMatch() {
     for (const locator of rule.locators) {
       const elements = resolveLocatorElements(locator);
       for (const element of elements) {
-        if (doesElementMatchText(element, rule)) {
+        if (isElementVisible(element) && doesElementMatchText(element, rule)) {
           return { ruleId: rule.id, element };
         }
       }
@@ -238,7 +257,8 @@ function startMutationObserver() {
   observer.observe(observerTarget, {
     childList: true,
     subtree: true,
-    characterData: true
+    characterData: true,
+    attributes: true
   });
 }
 
@@ -250,6 +270,9 @@ async function loadSettings() {
 async function initAdMuteFeature() {
   await loadSettings();
   startMutationObserver();
+  window.setInterval(() => {
+    scheduleEvaluation();
+  }, FALLBACK_RECHECK_INTERVAL_MS);
   await evaluateMuteState();
 }
 
