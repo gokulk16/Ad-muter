@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Ad Mute",
+  "name": "Ad Mute for JioHotstar",
   "version": "1.1.0",
-  "description": "Automatically mutes supported streaming tabs when ad indicators are detected.",
+  "description": "Automatically mutes JioHotstar when ads play and unmutes when they end. Silent ads, seamless streaming.",
   "minimum_chrome_version": "114",
   "action": {
     "default_popup": "popup.html",
