@@ -22,6 +22,16 @@ const AD_INDICATOR_RULES = [
         query: "div[data-testid='ad-head'] span[data-testid='indicator-base-text']"
       }
     ]
+  },
+  {
+    id: "hotstar-ad-info",
+    textIncludes: "Ad",
+    locators: [
+      {
+        type: "css",
+        query: "div[data-testid='ad-info']"
+      }
+    ]
   }
 ];
 
