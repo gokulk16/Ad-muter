@@ -15,11 +15,6 @@ const AD_INDICATOR_RULES = [
       {
         type: "xpath",
         query:
-          "//*[@id='page-container']/div/div/div[1]/div/div/div/div/div[2]/div/div[1]/div[1]/div[2]/div/div[1]/div/div[2]/div/span[2]"
-      },
-      {
-        type: "xpath",
-        query:
           "//*[@data-testid='ad-head']//span[@data-testid='indicator-base-text']"
       },
       {
@@ -173,7 +168,7 @@ async function evaluateMuteState() {
     return;
   }
 
-  if (lastRequestedMuteState !== false) {
+  if (lastRequestedMuteState === true) {
     scheduleUnmuteWhenStable();
   }
 }
