@@ -77,9 +77,9 @@ async function handleMuteRequest({ tabId, muted, reason }) {
     if (!isCurrentlyMuted) {
       await chrome.tabs.update(tabId, { muted: true });
       console.log(`Muted tab ${tabId} (${reason})`);
+      extensionMutedTabIds.add(tabId);
+      await persistMutedTabs();
     }
-    extensionMutedTabIds.add(tabId);
-    await persistMutedTabs();
     return;
   }
 

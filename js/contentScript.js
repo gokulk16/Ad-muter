@@ -168,7 +168,7 @@ async function evaluateMuteState() {
     return;
   }
 
-  if (lastRequestedMuteState === true) {
+  if (lastRequestedMuteState === true || lastRequestedMuteState === null) {
     scheduleUnmuteWhenStable();
   }
 }
